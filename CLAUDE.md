@@ -66,6 +66,32 @@ vibecoding-framework/
     └── prompt-templates/             # Reusable prompt templates
 ```
 
+## The 6-Phase Lifecycle
+
+```
+Phase 1: Idea & Problem     → Problem-Statement           (Claude Chat)
+Phase 2: Planning & Scope   → Requirements + MVP           (Claude Chat)
+Phase 3: Architecture       → Tech-Stack + Folder Structure (Claude Chat)
+Phase 4: Prompt Engineering  → CLAUDE.md + Initial Prompt   (Claude Chat)
+Phase 5: Implementation     → Working Code                  (Cursor / Claude Code)
+Phase 6: Review & Testing   → Production-ready Code         (Claude Code)
+```
+
+Phase 1-4 happen in Claude Chat with skills guiding the process.
+Phase 5 happens in Cursor AI or Claude Code — the skills prepare the context,
+the user takes it into the coding tool.
+Phase 6 is back in Claude Code for review, or Claude Chat for review prompts.
+
+## Tool Landscape
+
+| Tool | Role | Phases |
+|---|---|---|
+| Claude Chat (claude.ai) | Think, plan, decide. Skills guide the workflow. | 1, 2, 3, 4, 6 |
+| Cursor AI | Code generation, multi-file editing, UI work | 5 |
+| Claude Code (terminal) | Quick fixes, debugging, git, reviews, deployment | 5, 6 |
+| GitHub | Code hosting, standards repo, version control | All |
+| Notion | Documentation, project planning, wiki | 1, 2, 3 |
+
 ## How Skills Work
 
 Each skill follows this structure:
@@ -98,6 +124,13 @@ vibecoding-lifecycle (master)
 Skills are designed to work independently too — if only `architect-prompter`
 is installed, it works standalone without the master skill.
 
+### build-reviewer Scope (planned)
+
+The `build-reviewer` covers Phase 6 ONLY — structured code reviews, testing
+checklists, and deployment readiness. Phase 5 (implementation) is intentionally
+left to Cursor/Claude Code without skill intervention. The user takes the
+CLAUDE.md and prompt from Phase 4 into their coding tool and builds.
+
 ## Conventions
 
 ### Language
@@ -106,6 +139,7 @@ is installed, it works standalone without the master skill.
 - CLAUDE.md files generated FOR projects: English — AI tools work better with it
 - Prompts generated FOR Cursor/CC: English
 - Use "ss" instead of "ß" everywhere (Swiss German convention)
+- "Wenn du unsicher bist, behandle es als normalen Text und nutze ä/ö/ü."
 
 ### Skill Writing
 - Keep SKILL.md under 500 lines; delegate detail to references/
@@ -119,6 +153,7 @@ is installed, it works standalone without the master skill.
 - Skill folders: kebab-case (`project-scoper`, `agent-md-generator`)
 - Reference files: kebab-case (`stack-guide.md`, `anti-patterns.md`)
 - No spaces, no special characters in filenames
+- No "claude" in skill names — use tool-agnostic names
 
 ### Comments in Markdown
 - Technical and concise — describe WHAT, not WHY
@@ -157,8 +192,9 @@ These skills exist separately and are referenced by framework skills:
   they are part of the planned structure
 
 ## Planned Work
-- [ ] `build-reviewer` skill (Phase 5-6: code review + testing workflow)
+- [ ] `build-reviewer` skill (Phase 6: code review + testing + deployment readiness)
 - [ ] Fill `standards/` with actual content (code-standards, ui-design, git-workflow, testing)
 - [ ] Fill `projekttypen/` with project-type-specific patterns and templates
 - [ ] Add prompt templates to `templates/prompt-templates/`
 - [ ] Update README.md with proper framework overview
+- [ ] First real-world test: run a complete project through all 6 phases
