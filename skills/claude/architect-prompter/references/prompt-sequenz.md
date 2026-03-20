@@ -28,8 +28,23 @@ Das Ergebnis bestimmt ob ein Einzelprompt oder eine Sequenz generiert wird.
 | **Schichten** | Nur Backend ODER Frontend | Backend + Frontend | Backend + Frontend + Auth |
 | **Endpoints/Pages** | 1-3 | 4-8 | 9+ |
 | **Datenmodell** | 1-2 Entitäten | 3-5 Entitäten | 6+ oder Legacy-DB |
-| **Integrationen** | Keine | 1 externe (Auth-Provider, API) | 2+ oder Legacy-System |
-| **Deployment** | Standard (npm start) | Docker | Portabel (.exe, embedded) |
+| **Integrationen** | Keine | 1 lokale (ODBC, lokale Legacy-DB, Dateisystem) | 1+ externe API ODER 2+ lokale |
+| **Deployment** | Standard (npm start, python main.py) | Docker oder einfaches Packaging | Portabel (.exe, embedded Server, ODBC-Abhängigkeit) |
+
+#### Hinweise zum Scoring
+
+**Integrationen differenzieren:**
+- Eine lokale Legacy-DB via ODBC/JDBC ist aufwändiger als "keine Integration"
+  (Treiber, SQL-Dialekt, Record-Locking), aber weniger komplex als externe APIs
+  (Netzwerk, Auth-Tokens, Rate-Limits). Darum: lokale Integration = 1, externe = 2.
+- Zwei lokale Integrationen (z.B. ODBC + Dateisystem-Watcher) addieren sich
+  ebenfalls auf 2 Punkte.
+
+**Deployment differenzieren:**
+- "Standard" = der übliche Weg für den Stack (npm start, python main.py, Docker).
+  Docker allein ist keine Sonderkomplexität wenn der Stack das als Standard nutzt.
+- "Portabel" = alles was über den Standard hinausgeht: PyInstaller, Electron,
+  embedded Server, ODBC-Treiber-Abhängigkeit, Offline-Fähigkeit.
 
 ### Ergebnis
 
@@ -37,25 +52,52 @@ Das Ergebnis bestimmt ob ein Einzelprompt oder eine Sequenz generiert wird.
 |---|---|---|
 | 0-3 | **S** (Small) | Einzelprompt — alles in einem |
 | 4-6 | **M** (Medium) | 2-3 Prompts in Sequenz |
-| 7+ | **L** (Large) | 4-6 Prompts in Sequenz |
+| 7-8 | **L** (Large) | 4-5 Prompts in Sequenz |
+| 9-10 | **XL** (Extra Large) | 5-6 Prompts in Sequenz |
 
-### Beispiel: Artikel-Manager (Testprojekt)
+**Grenzfälle:** Wenn die Summe genau auf einer Grenze liegt (3, 6, 8),
+den Kontext betrachten: Ist das Projekt eher komplex oder einfach für seine
+Kategorie? Im Zweifel eine Stufe höher wählen — ein Prompt zu viel ist
+weniger schlimm als ein Mega-Prompt der halbfertige Ergebnisse liefert.
+
+### Beispiel: Artikel-Manager (Desktop-App mit Legacy-DB)
+
+- Schichten: UI + Service + DB (kein separates Backend, kein Auth-Provider) = **1**
+- Endpoints/Pages: Suchmaske, Detailansicht, Erfassungsdialog = **1**
+- Datenmodell: Legacy Access DB, 88 Spalten, 18 Tabellen, keine FK-Constraints = **2**
+- Integrationen: ODBC zu lokaler Access-DB = **1**
+- Deployment: PyInstaller portabel mit ODBC-Abhängigkeit = **2**
+- **Summe: 7 → L → 4-5 Prompts**
+
+Alternativ bei bewusster Vereinfachung (weniger Views, schlankes Deployment)
+kann M (3 Prompts) passend sein — der User entscheidet nach Präsentation.
+
+### Beispiel: Rezept-Manager (Web-App)
 
 - Schichten: Backend + Frontend + Auth = **2**
-- Endpoints/Pages: 10+ Endpoints, 5+ Pages = **2**
-- Datenmodell: 4+ Entitäten, Legacy-Access-DB = **2**
-- Integrationen: ODBC zu Legacy-DB = **2**
-- Deployment: PyInstaller .exe = **2**
-- **Summe: 10 → L → 4-6 Prompts**
+- Endpoints/Pages: 5 Endpoints, 4 Pages = **1**
+- Datenmodell: 5 Entitäten, neues Schema = **1**
+- Integrationen: Keine = **0**
+- Deployment: Docker = **1**
+- **Summe: 5 → M → 2-3 Prompts**
 
-### Beispiel: Backup-Monitor
+### Beispiel: Backup-Monitor (Script)
 
 - Schichten: Nur Backend (Script) = **0**
 - Endpoints: Kein API = **0**
 - Datenmodell: YAML Config = **0**
-- Integrationen: Notification-API = **1**
+- Integrationen: Notification-API (extern) = **2**
 - Deployment: Cron-Job = **0**
-- **Summe: 1 → S → Einzelprompt**
+- **Summe: 2 → S → Einzelprompt**
+
+### Beispiel: Task-API (Backend mit Auth)
+
+- Schichten: Nur Backend + Auth = **1**
+- Endpoints: 10+ Endpoints = **2**
+- Datenmodell: 3 Entitäten (User, Project, Task) = **1**
+- Integrationen: Keine = **0**
+- Deployment: Docker = **1**
+- **Summe: 5 → M → 2-3 Prompts**
 
 ## Sequenz-Prinzipien
 
@@ -111,10 +153,6 @@ Prompt 4: Frontend-Grundstruktur
 Prompt 5: Frontend-Pages
   → Listen-, Detail-, Formular-Seiten, Admin-Bereich
   → Prüfpunkt: Alle MVP-Features nutzbar
-
-Prompt 6 (optional): Build + Deployment
-  → Build-Script, Docker/PyInstaller, README
-  → Prüfpunkt: Deploybares Artefakt
 ```
 
 ### API / Backend-Service
@@ -160,7 +198,7 @@ Prompt 1: Komplettes Script + Config + README
 
 ## Prompt-Sequenz generieren
 
-Wenn die Komplexität M oder L ergibt, generiert der `architect-prompter`
+Wenn die Komplexität M oder grösser ergibt, generiert der `architect-prompter`
 nicht einen Prompt, sondern eine nummerierte Sequenz.
 
 ### Format pro Sequenz-Prompt
@@ -207,7 +245,7 @@ Your task builds on this existing code.
 Die Sequenz wird als Übersicht präsentiert (nicht als komplette Prompts).
 Der User sieht:
 
-1. Komplexitäts-Einschätzung (S/M/L) mit Begründung
+1. Komplexitäts-Einschätzung (S/M/L/XL) mit Scoring-Tabelle
 2. Sequenz-Übersicht (nummerierte Schritte mit Titel und Prüfpunkt)
 3. Erster Prompt als kopierbarer Block
 
