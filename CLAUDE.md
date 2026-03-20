@@ -35,7 +35,7 @@ vibecoding-framework/
 │       │   ├── SKILL.md
 │       │   └── references/
 │       │       ├── phasen.md         # Phase templates and examples
-│       │       ├── tool-guide.md     # When to use which tool
+│       │       ├── tool-guide.md     # When to use which tool + chat session mgmt
 │       │       └── anti-patterns.md  # Common mistakes to avoid
 │       ├── project-scoper/           # Phase 1-2: Idea → Problem → Requirements
 │       │   ├── SKILL.md
@@ -49,10 +49,15 @@ vibecoding-framework/
 │       │       ├── prompt-schema.md  # Prompt structure + examples per task type
 │       │       ├── prompt-sequenz.md # Complexity gate + prompt sequence logic
 │       │       └── claude-md-template.md
-│       └── agent-md-generator/       # Generates CLAUDE.md + .cursorrules files
+│       ├── agent-md-generator/       # Generates CLAUDE.md + .cursorrules files
+│       │   ├── SKILL.md
+│       │   └── references/
+│       │       └── beispiele.md      # Full CLAUDE.md examples per project type
+│       └── build-reviewer/           # Phase 6: Code review, testing, deployment
 │           ├── SKILL.md
 │           └── references/
-│               └── beispiele.md      # Full CLAUDE.md examples per project type
+│               ├── review-kategorien.md  # Modular review prompt building blocks
+│               └── testing-templates.md  # Checklist templates by project type
 ├── standards/                        # Cross-cutting standards (referenced by skills)
 │   ├── code-standards/               # Naming, formatting, patterns per language
 │   ├── ui-design/                    # Design tokens, components, typography
@@ -76,13 +81,14 @@ Phase 3: Architecture       → Tech-Stack + Folder Structure (Claude Chat)
   ↓ Complexity Gate (S/M/L)
 Phase 4: Prompt Engineering  → CLAUDE.md + Prompt(s)        (Claude Chat)
 Phase 5: Implementation     → Working Code                  (Cursor / Claude Code)
-Phase 6: Review & Testing   → Production-ready Code         (Claude Code)
+Phase 6: Review & Testing   → Production-ready Code         (Claude Chat + Claude Code)
 ```
 
 Phase 1-4 happen in Claude Chat with skills guiding the process.
 Phase 5 happens in Cursor AI or Claude Code — the skills prepare the context,
 the user takes it into the coding tool.
-Phase 6 is back in Claude Code for review, or Claude Chat for review prompts.
+Phase 6 uses the `build-reviewer` skill in Claude Chat to generate review prompts
+and testing checklists, then Claude Code to execute the review.
 
 ### Complexity Gate (between Phase 3 and 4)
 
@@ -90,7 +96,8 @@ After architecture is approved, the project complexity is scored on 5 factors
 (layers, endpoints, data model, integrations, deployment) with 0-2 points each:
 - **S (0-3):** Single prompt — everything in one shot
 - **M (4-6):** 2-3 prompts in sequence
-- **L (7+):** 4-6 prompts in sequence
+- **L (7-8):** 4-5 prompts in sequence
+- **XL (9-10):** 5-6 prompts in sequence
 
 This prevents the "everything-at-once" anti-pattern where a single mega-prompt
 tries to generate 15+ files and produces inconsistent results.
@@ -133,18 +140,11 @@ vibecoding-lifecycle (master)
 ├── delegates Phase 1-2 to → project-scoper
 ├── delegates Phase 3-4 to → architect-prompter
 │   └── delegates CLAUDE.md generation to → agent-md-generator
-└── delegates Phase 5-6 to → build-reviewer (planned)
+└── delegates Phase 6 to → build-reviewer
 ```
 
 Skills are designed to work independently too — if only `architect-prompter`
 is installed, it works standalone without the master skill.
-
-### build-reviewer Scope (planned)
-
-The `build-reviewer` covers Phase 6 ONLY — structured code reviews, testing
-checklists, and deployment readiness. Phase 5 (implementation) is intentionally
-left to Cursor/Claude Code without skill intervention. The user takes the
-CLAUDE.md and prompt from Phase 4 into their coding tool and builds.
 
 ## Conventions
 
@@ -209,7 +209,7 @@ These skills exist separately and are referenced by framework skills:
   still produces sensible results for known test projects
 
 ## Planned Work
-- [ ] `build-reviewer` skill (Phase 6: code review + testing + deployment readiness)
+- [x] ~~`build-reviewer` skill (Phase 6: code review + testing + deployment readiness)~~
 - [ ] Fill `standards/` with actual content (code-standards, ui-design, git-workflow, testing)
 - [x] ~~Fill `projekttypen/` with project-type-specific patterns and templates~~ (web-app, api-backend done)
 - [ ] Fill `projekttypen/homelab/` and `projekttypen/automation/` with patterns
@@ -218,3 +218,4 @@ These skills exist separately and are referenced by framework skills:
 - [x] ~~First real-world test: run a complete project through all 6 phases~~ (Article Manager test)
 - [ ] CLAUDE.md length guidance in agent-md-generator for DB-heavy projects
 - [ ] Second test: run a project through the updated workflow with prompt sequences
+- [ ] Update Notion Wiki page with current skill inventory
