@@ -110,6 +110,131 @@ kann M (3 Prompts) passend sein — der User entscheidet nach Präsentation.
 5. **Jeder Prompt referenziert CLAUDE.md** — im PREPARATION-Block
 6. **Prüfpunkt nach jedem Prompt** — User testet und committet bevor weiter
 
+## Einzelprompt-Grössenlimit
+
+Das Komplexitäts-Gate verhindert zu grosse Gesamtprojekte in einem Prompt.
+Aber auch innerhalb einer Sequenz kann ein einzelner Prompt zu gross werden.
+
+**Selbstcheck für jeden Prompt in der Sequenz:**
+
+Zähle die Aufgabenblöcke im TASK-Abschnitt. Ein Aufgabenblock ist eine
+eigenständige Einheit wie "Edit-Dialog bauen", "Query-Funktionen schreiben",
+"Build-Script erstellen".
+
+| Aufgabenblöcke | Bewertung | Aktion |
+|---|---|---|
+| 1-3 | ✅ Gut | Prompt passt |
+| 4-5 | ⚠️ Grenzwertig | Prüfen ob Blöcke eng zusammenhängen |
+| 6+ | ❌ Zu gross | Prompt aufteilen |
+
+**Wenn ein Prompt zu gross ist:**
+Die logische Trennlinie liegt meistens zwischen "erstellen" und "verkabeln":
+- Prompt N: Neue Komponenten bauen (Dialog, Service, Queries)
+- Prompt N+1: Bestehende UI anpassen + Integration + Build/Doku
+
+**Beispiel — zu grosser CRUD-Prompt:**
+```
+❌ Ein Prompt mit 7 Blöcken:
+1. Edit-Dialog (16 Felder, Validation, Duplicate-Check)
+2. Write-Queries (INSERT, UPDATE, Transaction-Handling)
+3. Article-Service (5 Methoden)
+4. Auth-Service
+5. UI-Verkabelung (3 Views anpassen)
+6. PyInstaller Build
+7. README Update
+
+✅ Aufgeteilt in 2 Prompts:
+Prompt 3: Edit-Dialog + Write-Queries + Services
+  → Neue Dateien erstellen, eigenständig testbar
+  → Prüfpunkt: Dialog öffnet, Speichern schreibt in DB
+
+Prompt 4: UI-Integration + Build + Doku
+  → Buttons verkabeln, Modi durchsetzen, Build-Script, README
+  → Prüfpunkt: App komplett nutzbar, Build erstellt
+```
+
+## Kontext-Brücken
+
+Ab Prompt 2 muss der PREPARATION-Block beschreiben was die vorherigen
+Prompts bereits erstellt haben. Der AI-Agent hat keinen Kontext aus dem
+vorherigen Chat.
+
+### Regeln für Kontext-Brücken
+
+1. **Konkrete Dateipfade auflisten** — nicht nur beschreiben was existiert,
+   sondern welche Dateien. Der Agent muss wissen was er lesen kann.
+2. **Wichtige Klassen und Funktionen benennen** — wenn der neue Prompt
+   bestehende Funktionen aufruft, diese explizit nennen.
+3. **Explizit sagen was NICHT angefasst werden soll** — "Do NOT recreate
+   or restructure what already exists — extend it."
+4. **Kurz halten** — 10-20 Zeilen maximal. Kein Nachbau der CLAUDE.md.
+
+### Vorlage
+
+```markdown
+## PREPARATION
+
+Read `CLAUDE.md` for full project context.
+
+The previous prompt(s) have created:
+
+**Dateien:**
+- `src/config/settings.py` — Config loader (db_path, app_mode)
+- `src/db/connection.py` — pyodbc connection manager
+- `src/db/models.py` — Dataclasses: Article, Manufacturer, ArticleLexicon, ArticleAttribute
+- `src/db/queries.py` — Query functions (see below)
+- `src/main.py` — QApplication entry point
+
+**Verfügbare Funktionen in `queries.py`:**
+- `get_articles_by_filter(conn, ...) -> list[Article]`
+- `get_article_by_number(conn, art_number) -> Article | None`
+- `get_all_manufacturers(conn) -> list[Manufacturer]`
+- `get_lexicon_for_article(conn, art_number) -> list[ArticleLexicon]`
+- `article_number_exists(conn, art_number) -> bool`
+
+**Verfügbare UI-Komponenten (aus Prompt 2):**
+- `src/ui/main_window.py` — MainWindow mit QStackedWidget, Toolbar, Status-Bar
+- `src/ui/search_view.py` — SearchView mit Filter-Form und QTableView
+- `src/ui/detail_view.py` — DetailView mit GroupBox-Sections
+- `src/ui/widgets/article_table_model.py` — QAbstractTableModel
+- `src/ui/widgets/labeled_field.py` — Label+Value Widget
+
+Your task builds on this existing code. Do NOT recreate or restructure
+what already exists — extend it.
+```
+
+### Schlecht vs. Gut
+
+**❌ Zu vage (Agent weiss nicht was existiert):**
+```
+The previous prompt has created the project foundation:
+- Project structure with all directories
+- Config loader and database connection
+- Data models and query functions
+- Minimal app entry point
+```
+
+**❌ Zu lang (wiederholt die CLAUDE.md):**
+```
+[40 Zeilen die den kompletten Tech-Stack, alle Dataclass-Felder,
+alle SQL-Queries und die Config-Optionen wiederholen]
+```
+
+**✅ Richtig (konkret, knapp, mit Dateipfaden und Funktionsnamen):**
+```
+The previous prompt has created:
+
+Files:
+- `src/db/connection.py` — get_connection() context manager
+- `src/db/models.py` — Article, Manufacturer dataclasses
+- `src/db/queries.py` — get_articles_by_filter(), get_all_manufacturers(),
+  get_lexicon_for_article(), article_number_exists()
+- `src/config/settings.py` — loads config.ini (db_path, app_mode)
+- `src/main.py` — QApplication with MainWindow
+
+Your task builds on this existing code.
+```
+
 ## Sequenz-Vorlagen nach Projekttyp
 
 Diese Vorlagen sind Ausgangspunkte. Je nach Projekt anpassen.
@@ -153,6 +278,42 @@ Prompt 4: Frontend-Grundstruktur
 Prompt 5: Frontend-Pages
   → Listen-, Detail-, Formular-Seiten, Admin-Bereich
   → Prüfpunkt: Alle MVP-Features nutzbar
+```
+
+### Desktop-App (PySide6 / PyQt)
+
+**Grösse M (3 Views, einfaches Datenmodell):**
+```
+Prompt 1: Gerüst + DB-Layer + Datenmodell
+  → Projektstruktur, Config, DB-Verbindung, Dataclasses, Queries
+  → Prüfpunkt: App startet, DB verbunden, Queries testbar
+
+Prompt 2: UI (Read-Only)
+  → Hauptfenster, Suche, Ergebnistabelle, Detailansicht
+  → Prüfpunkt: Suche und Navigation funktionieren
+
+Prompt 3: Schreiboperationen + Build
+  → Erfassungsdialog, Validierung, CRUD-Queries, PyInstaller
+  → Prüfpunkt: Erstellen/Bearbeiten funktioniert, Build läuft
+```
+
+**Grösse L (3+ Views, Legacy-DB, komplexes Formular):**
+```
+Prompt 1: Gerüst + DB-Layer + Datenmodell
+  → Projektstruktur, Config, DB-Verbindung, Dataclasses, Basis-Queries
+  → Prüfpunkt: App startet, DB verbunden
+
+Prompt 2: UI (Read-Only)
+  → Hauptfenster, Suche mit Filtern, Ergebnistabelle, Detailansicht
+  → Prüfpunkt: Suche und Detail-Navigation funktionieren
+
+Prompt 3: Erfassungsdialog + Write-Queries + Services
+  → Formular, Validation, Duplicate-Check, INSERT/UPDATE, Service-Layer
+  → Prüfpunkt: Dialog öffnet, Speichern schreibt in DB
+
+Prompt 4: UI-Integration + Modi + Build + Doku
+  → Buttons verkabeln, Lese-/Schreibmodus, PyInstaller, README
+  → Prüfpunkt: App komplett nutzbar, Build erstellt
 ```
 
 ### API / Backend-Service
@@ -208,36 +369,20 @@ nicht einen Prompt, sondern eine nummerierte Sequenz.
 
 ## PREPARATION
 Read CLAUDE.md for full project context.
-[Wenn N > 1: "The previous prompts have already created: [kurze Liste]"]
+[Wenn N > 1: Kontext-Brücke mit Dateipfaden und Funktionsnamen]
 
 ## TASK
-[Fokussierte Aufgabe für diesen Schritt]
+[Fokussierte Aufgabe — maximal 3-4 Aufgabenblöcke, siehe Grössenlimit]
 
 ## CONSTRAINTS
 [Step-spezifische Einschränkungen]
+["Do NOT implement X — that comes in Prompt N+1"]
 
 ## CHECKPOINT
 After completing this step, verify:
 - [ ] [Konkreter Test 1]
 - [ ] [Konkreter Test 2]
 Commit with message: "feat: [beschreibung]"
-```
-
-### Wichtig: Kontext-Brücken
-
-Ab Prompt 2 muss der PREPARATION-Block kurz beschreiben was die vorherigen
-Prompts bereits erstellt haben. Der AI-Agent hat keinen Kontext aus dem
-vorherigen Chat.
-
-```
-## PREPARATION
-Read CLAUDE.md for project context.
-The previous prompt has created the backend scaffolding:
-- FastAPI app with config and database connection (app/main.py, app/config.py)
-- Auth routes and JWT middleware (app/routes/auth.py, app/middleware/auth.py)
-- User model and service (app/models/user.py, app/services/auth_service.py)
-
-Your task builds on this existing code.
 ```
 
 ## Dem User präsentieren
