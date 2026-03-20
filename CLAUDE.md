@@ -17,8 +17,8 @@ Three layers work together:
    through workflows. Installed in Claude Chat via Settings > Skills.
 2. **Standards** (`standards/`) — Cross-cutting conventions (code style, UI,
    git workflow, testing) referenced by skills and CLAUDE.md files.
-3. **Project Type Modules** (`projekttypen/`) — Type-specific patterns and
-   templates (web-app, api-backend, homelab, automation).
+3. **Project Type Modules** (`projekttypen/`) — Type-specific patterns,
+   prompt sequences, and templates (web-app, api-backend, homelab, automation).
 
 A companion Notion Wiki page ("VibeCoding Framework — Übersicht") contains
 the human-readable documentation and checklists.
@@ -47,6 +47,7 @@ vibecoding-framework/
 │       │   └── references/
 │       │       ├── stack-guide.md    # Recommended stacks per project type
 │       │       ├── prompt-schema.md  # Prompt structure + examples per task type
+│       │       ├── prompt-sequenz.md # Complexity gate + prompt sequence logic
 │       │       └── claude-md-template.md
 │       └── agent-md-generator/       # Generates CLAUDE.md + .cursorrules files
 │           ├── SKILL.md
@@ -57,9 +58,9 @@ vibecoding-framework/
 │   ├── ui-design/                    # Design tokens, components, typography
 │   ├── git-workflow/                 # Branch strategy, commit conventions
 │   └── testing/                      # Test patterns, coverage goals
-├── projekttypen/                     # Project-type-specific patterns
-│   ├── web-app/
-│   ├── api-backend/
+├── projekttypen/                     # Project-type-specific patterns + sequences
+│   ├── web-app/                      # Prompt sequences, legacy DB patterns, CLAUDE.md sizing
+│   ├── api-backend/                  # Prompt sequences, error/pagination patterns
 │   ├── homelab/
 │   └── automation/
 └── templates/
@@ -72,7 +73,8 @@ vibecoding-framework/
 Phase 1: Idea & Problem     → Problem-Statement           (Claude Chat)
 Phase 2: Planning & Scope   → Requirements + MVP           (Claude Chat)
 Phase 3: Architecture       → Tech-Stack + Folder Structure (Claude Chat)
-Phase 4: Prompt Engineering  → CLAUDE.md + Initial Prompt   (Claude Chat)
+  ↓ Complexity Gate (S/M/L)
+Phase 4: Prompt Engineering  → CLAUDE.md + Prompt(s)        (Claude Chat)
 Phase 5: Implementation     → Working Code                  (Cursor / Claude Code)
 Phase 6: Review & Testing   → Production-ready Code         (Claude Code)
 ```
@@ -81,6 +83,19 @@ Phase 1-4 happen in Claude Chat with skills guiding the process.
 Phase 5 happens in Cursor AI or Claude Code — the skills prepare the context,
 the user takes it into the coding tool.
 Phase 6 is back in Claude Code for review, or Claude Chat for review prompts.
+
+### Complexity Gate (between Phase 3 and 4)
+
+After architecture is approved, the project complexity is scored on 5 factors
+(layers, endpoints, data model, integrations, deployment) with 0-2 points each:
+- **S (0-3):** Single prompt — everything in one shot
+- **M (4-6):** 2-3 prompts in sequence
+- **L (7+):** 4-6 prompts in sequence
+
+This prevents the "everything-at-once" anti-pattern where a single mega-prompt
+tries to generate 15+ files and produces inconsistent results.
+Details: `skills/claude/architect-prompter/references/prompt-sequenz.md`
+Project-type templates: `projekttypen/web-app/` and `projekttypen/api-backend/`
 
 ## Tool Landscape
 
@@ -190,11 +205,16 @@ These skills exist separately and are referenced by framework skills:
   all projects that use those skills
 - Keep `projekttypen/` and `standards/` folders even if empty (.gitkeep) —
   they are part of the planned structure
+- When updating prompt-sequenz.md or projekttypen, verify the scoring heuristic
+  still produces sensible results for known test projects
 
 ## Planned Work
 - [ ] `build-reviewer` skill (Phase 6: code review + testing + deployment readiness)
 - [ ] Fill `standards/` with actual content (code-standards, ui-design, git-workflow, testing)
-- [ ] Fill `projekttypen/` with project-type-specific patterns and templates
+- [x] ~~Fill `projekttypen/` with project-type-specific patterns and templates~~ (web-app, api-backend done)
+- [ ] Fill `projekttypen/homelab/` and `projekttypen/automation/` with patterns
 - [ ] Add prompt templates to `templates/prompt-templates/`
 - [ ] Update README.md with proper framework overview
-- [ ] First real-world test: run a complete project through all 6 phases
+- [x] ~~First real-world test: run a complete project through all 6 phases~~ (Article Manager test)
+- [ ] CLAUDE.md length guidance in agent-md-generator for DB-heavy projects
+- [ ] Second test: run a project through the updated workflow with prompt sequences
