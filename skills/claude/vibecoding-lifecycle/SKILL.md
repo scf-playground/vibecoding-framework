@@ -37,7 +37,8 @@ Lese je nach Phase die passende Referenz aus `references/`:
 Phase 1: Idee & Problem     → Problem-Statement
 Phase 2: Planung & Scope    → Requirements + MVP-Definition
 Phase 3: Architektur & Stack → Tech-Entscheidung + Ordnerstruktur
-Phase 4: Prompt Engineering  → CLAUDE.md + initialer Prompt
+  ↓ Komplexitäts-Gate (S/M/L)
+Phase 4: Prompt Engineering  → CLAUDE.md + Prompt(s)
 Phase 5: Umsetzung          → Funktionierender Code
 Phase 6: Review & Testing   → Production-ready Code
 ```
@@ -113,6 +114,7 @@ ihn delegieren. Er führt den User strukturiert durch Requirements-Erfassung.
 **Ziel:** Tech-Stack wählen und Systemarchitektur definieren.
 
 **Wenn der `architect-prompter` Skill verfügbar ist:** Phase 3-4 an ihn delegieren.
+Er enthält auch das Komplexitäts-Gate.
 
 **Wenn nicht verfügbar, selbst durchführen:**
 
@@ -131,33 +133,41 @@ ihn delegieren. Er führt den User strukturiert durch Requirements-Erfassung.
 
 **Freigabe-Gate:** Architektur via `ask_user_input` bestätigen lassen.
 
+## Komplexitäts-Gate (zwischen Phase 3 und 4)
+
+**Ziel:** Bestimmen ob das Projekt einen Einzelprompt oder eine Prompt-Sequenz braucht.
+
+Nach der Architektur-Freigabe die Projektkomplexität bewerten:
+- 5 Faktoren à 0-2 Punkte (Schichten, Endpoints, Datenmodell, Integrationen, Deployment)
+- S (0-3) = Einzelprompt, M (4-6) = 2-3 Prompts, L (7+) = 4-6 Prompts
+
+Details: `architect-prompter/references/prompt-sequenz.md`
+Projekttyp-Vorlagen: `projekttypen/web-app/` und `projekttypen/api-backend/`
+
+Dem User die Einschätzung transparent mitteilen und bestätigen lassen.
+Das verhindert das "Alles-auf-einmal-Syndrom" (siehe `references/anti-patterns.md`).
+
 ## Phase 4: Prompt Engineering
 
-**Ziel:** CLAUDE.md und initialen Prompt für Cursor/Claude Code generieren.
+**Ziel:** CLAUDE.md und Prompt(s) für Cursor/Claude Code generieren.
 
 **Wenn der `agent-md-generator` Skill verfügbar ist:** CLAUDE.md-Generierung an
 ihn delegieren.
 
 **Wenn nicht verfügbar, selbst durchführen:**
 
-1. CLAUDE.md zusammenbauen aus den Ergebnissen von Phase 1-3:
-   - Projektziel (Phase 1)
-   - Requirements/MVP (Phase 2)
-   - Tech-Stack und Ordnerstruktur (Phase 3)
-   - Relevante Code-Standards
-   - Konventionen und Regeln
-2. Initialen Prompt formulieren nach dem Schema:
-   - PREPARATION → Was der Agent zuerst lesen soll
-   - CONTEXT → Problem und Business-Kontext
-   - TASK → Klare Aufgabenbeschreibung
-   - CONSTRAINTS → Was NICHT getan werden soll
-   - OUTPUT FORMAT → Erwartetes Ergebnis
+1. CLAUDE.md zusammenbauen aus den Ergebnissen von Phase 1-3
+2. Bei **Grösse S:** Einen einzelnen Prompt generieren
+3. Bei **Grösse M/L:** Eine nummerierte Prompt-Sequenz generieren:
+   - Übersicht aller Schritte mit Titel und Prüfpunkt
+   - Nur den ersten Prompt als kopierbaren Block liefern
+   - Nachfolgende Prompts erst auf Anfrage (damit Kontext aktuell bleibt)
 
 Die CLAUDE.md wird als Datei erstellt und dem User präsentiert.
 
-**Output:** CLAUDE.md + initialer Prompt (kopierbarer Codeblock).
+**Output:** CLAUDE.md + Einzelprompt ODER CLAUDE.md + Prompt-Sequenz.
 
-**Freigabe-Gate:** CLAUDE.md und Prompt via `ask_user_input` bestätigen lassen.
+**Freigabe-Gate:** CLAUDE.md und Prompt(s) via `ask_user_input` bestätigen lassen.
 
 ## Phase 5: Umsetzung
 
@@ -166,6 +176,10 @@ Die CLAUDE.md wird als Datei erstellt und dem User präsentiert.
 **Dieser Skill begleitet die Umsetzung, führt sie aber nicht selbst durch.**
 Die eigentliche Code-Generierung passiert in Cursor/Claude Code mit dem Prompt
 aus Phase 4.
+
+**Bei Prompt-Sequenz:** Der User kommt nach jedem Schritt zurück für den nächsten
+Prompt. Dabei kann er beschreiben was sich geändert hat oder was angepasst werden
+muss — das fliesst in den nächsten Prompt ein.
 
 **Regeln die der User beachten soll:**
 1. Schritt für Schritt — nicht alles auf einmal generieren lassen

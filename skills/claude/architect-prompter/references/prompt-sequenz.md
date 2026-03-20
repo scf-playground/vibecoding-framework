@@ -1,0 +1,225 @@
+# Prompt-Sequenz
+
+Logik für die Aufteilung komplexer Projekte in eine geordnete Prompt-Folge.
+Verhindert das "Alles-auf-einmal-Syndrom" — das häufigste Anti-Pattern bei
+neuen Projekten.
+
+## Warum Sequenzen?
+
+AI-Coding-Tools haben ein begrenztes Kontext-Budget. Ein einzelner Prompt der
+20+ Dateien anfordert, produziert:
+- Abgeschnittene oder oberflächliche Outputs bei späteren Dateien
+- Inkonsistente Imports zwischen Modulen
+- Vergessenes Error-Handling in hinteren Teilen
+- Fehlende Validierung bei den letzten Endpoints
+
+**Faustregel:** Wenn der erwartete Output mehr als ~800 Zeilen Code umfasst,
+braucht es eine Sequenz statt eines Einzelprompts.
+
+## Komplexitäts-Bewertung
+
+Nach Phase 3 (Architektur steht) wird die Projektkomplexität eingeschätzt.
+Das Ergebnis bestimmt ob ein Einzelprompt oder eine Sequenz generiert wird.
+
+### Scoring-Heuristik
+
+| Faktor | 0 Punkte | 1 Punkt | 2 Punkte |
+|---|---|---|---|
+| **Schichten** | Nur Backend ODER Frontend | Backend + Frontend | Backend + Frontend + Auth |
+| **Endpoints/Pages** | 1-3 | 4-8 | 9+ |
+| **Datenmodell** | 1-2 Entitäten | 3-5 Entitäten | 6+ oder Legacy-DB |
+| **Integrationen** | Keine | 1 externe (Auth-Provider, API) | 2+ oder Legacy-System |
+| **Deployment** | Standard (npm start) | Docker | Portabel (.exe, embedded) |
+
+### Ergebnis
+
+| Summe | Grösse | Prompt-Strategie |
+|---|---|---|
+| 0-3 | **S** (Small) | Einzelprompt — alles in einem |
+| 4-6 | **M** (Medium) | 2-3 Prompts in Sequenz |
+| 7+ | **L** (Large) | 4-6 Prompts in Sequenz |
+
+### Beispiel: Artikel-Manager (Testprojekt)
+
+- Schichten: Backend + Frontend + Auth = **2**
+- Endpoints/Pages: 10+ Endpoints, 5+ Pages = **2**
+- Datenmodell: 4+ Entitäten, Legacy-Access-DB = **2**
+- Integrationen: ODBC zu Legacy-DB = **2**
+- Deployment: PyInstaller .exe = **2**
+- **Summe: 10 → L → 4-6 Prompts**
+
+### Beispiel: Backup-Monitor
+
+- Schichten: Nur Backend (Script) = **0**
+- Endpoints: Kein API = **0**
+- Datenmodell: YAML Config = **0**
+- Integrationen: Notification-API = **1**
+- Deployment: Cron-Job = **0**
+- **Summe: 1 → S → Einzelprompt**
+
+## Sequenz-Prinzipien
+
+1. **Jeder Prompt ist eigenständig lauffähig** — nach jedem Schritt muss der
+   Code starten (auch wenn noch nicht alles implementiert ist)
+2. **Abhängigkeiten zuerst** — Config, DB-Verbindung, Auth vor Features
+3. **Backend vor Frontend** — API muss stehen bevor die UI gebaut wird
+4. **Ein Prompt = ein logisches Modul** — nicht nach Dateien aufteilen,
+   sondern nach Funktionsbereichen
+5. **Jeder Prompt referenziert CLAUDE.md** — im PREPARATION-Block
+6. **Prüfpunkt nach jedem Prompt** — User testet und committet bevor weiter
+
+## Sequenz-Vorlagen nach Projekttyp
+
+Diese Vorlagen sind Ausgangspunkte. Je nach Projekt anpassen.
+Detaillierte Vorlagen mit Beispiel-Prompts liegen in `projekttypen/`.
+
+### Web-App (Frontend + Backend + Auth)
+
+**Grösse M (4-6 Endpoints, einfaches Datenmodell):**
+```
+Prompt 1: Backend-Gerüst + Auth
+  → Config, DB-Verbindung, Auth-Routen, JWT-Middleware
+  → Prüfpunkt: Login funktioniert, Token wird zurückgegeben
+
+Prompt 2: API-Endpoints
+  → CRUD für Haupt-Entitäten, Pagination, Filter
+  → Prüfpunkt: Endpoints via curl/Postman testbar
+
+Prompt 3: Frontend komplett
+  → Vite-Setup, Routing, Auth-Context, alle Pages
+  → Prüfpunkt: App startet, Login funktioniert, Daten werden angezeigt
+```
+
+**Grösse L (viele Endpoints, komplexes Datenmodell, Spezialitäten):**
+```
+Prompt 1: Backend-Gerüst + Config + DB-Verbindung
+  → Projektstruktur, Settings, DB-Connection-Factory, Health-Check
+  → Prüfpunkt: Server startet, DB-Verbindung steht
+
+Prompt 2: Auth-System
+  → User-Modell, Login/Refresh/Logout, JWT-Middleware, Rollen
+  → Prüfpunkt: Auth-Flow komplett testbar
+
+Prompt 3: Kern-API (Haupt-Entitäten)
+  → CRUD, Suche, Filter, Pagination für die wichtigsten Entitäten
+  → Prüfpunkt: Alle Kern-Endpoints funktionieren
+
+Prompt 4: Frontend-Grundstruktur
+  → Vite-Setup, Routing, Auth-Context, API-Client, Layout, Login-Page
+  → Prüfpunkt: App startet, Login funktioniert
+
+Prompt 5: Frontend-Pages
+  → Listen-, Detail-, Formular-Seiten, Admin-Bereich
+  → Prüfpunkt: Alle MVP-Features nutzbar
+
+Prompt 6 (optional): Build + Deployment
+  → Build-Script, Docker/PyInstaller, README
+  → Prüfpunkt: Deploybares Artefakt
+```
+
+### API / Backend-Service
+
+**Grösse M:**
+```
+Prompt 1: Gerüst + Auth + Datenmodell
+  → Config, DB, Auth-Routen, Schema-Migration
+  → Prüfpunkt: Auth funktioniert, DB-Schema steht
+
+Prompt 2: Alle Endpoints
+  → CRUD, Filter, Pagination, Geschäftslogik
+  → Prüfpunkt: Alle Endpoints via curl testbar
+```
+
+**Grösse L:**
+```
+Prompt 1: Gerüst + Config + DB
+Prompt 2: Auth-System
+Prompt 3: Kern-Endpoints (Haupt-Entitäten)
+Prompt 4: Sekundäre Endpoints + Geschäftslogik
+Prompt 5: Dokumentation + Build
+```
+
+### Homelab / Self-Hosted
+
+**Meistens Grösse S oder M:**
+```
+Prompt 1 (S): Alles in einem
+  → Docker Compose, App-Code, Config
+
+Prompt 1 (M): Backend + Config
+Prompt 2 (M): Frontend / Web-UI
+Prompt 3 (M): Docker + Reverse Proxy
+```
+
+### Automation / Script
+
+**Fast immer Grösse S:**
+```
+Prompt 1: Komplettes Script + Config + README
+```
+
+## Prompt-Sequenz generieren
+
+Wenn die Komplexität M oder L ergibt, generiert der `architect-prompter`
+nicht einen Prompt, sondern eine nummerierte Sequenz.
+
+### Format pro Sequenz-Prompt
+
+```markdown
+# Prompt [N] von [Total]: [Titel]
+
+## PREPARATION
+Read CLAUDE.md for full project context.
+[Wenn N > 1: "The previous prompts have already created: [kurze Liste]"]
+
+## TASK
+[Fokussierte Aufgabe für diesen Schritt]
+
+## CONSTRAINTS
+[Step-spezifische Einschränkungen]
+
+## CHECKPOINT
+After completing this step, verify:
+- [ ] [Konkreter Test 1]
+- [ ] [Konkreter Test 2]
+Commit with message: "feat: [beschreibung]"
+```
+
+### Wichtig: Kontext-Brücken
+
+Ab Prompt 2 muss der PREPARATION-Block kurz beschreiben was die vorherigen
+Prompts bereits erstellt haben. Der AI-Agent hat keinen Kontext aus dem
+vorherigen Chat.
+
+```
+## PREPARATION
+Read CLAUDE.md for project context.
+The previous prompt has created the backend scaffolding:
+- FastAPI app with config and database connection (app/main.py, app/config.py)
+- Auth routes and JWT middleware (app/routes/auth.py, app/middleware/auth.py)
+- User model and service (app/models/user.py, app/services/auth_service.py)
+
+Your task builds on this existing code.
+```
+
+## Dem User präsentieren
+
+Die Sequenz wird als Übersicht präsentiert (nicht als komplette Prompts).
+Der User sieht:
+
+1. Komplexitäts-Einschätzung (S/M/L) mit Begründung
+2. Sequenz-Übersicht (nummerierte Schritte mit Titel und Prüfpunkt)
+3. Erster Prompt als kopierbarer Block
+
+Nachfolgende Prompts werden erst generiert wenn der User danach fragt.
+So bleibt der Kontext aktuell — der User kann zwischen den Schritten
+Änderungen beschreiben die in den nächsten Prompt einfliessen.
+
+Via `ask_user_input`:
+```
+Frage: "Projekt-Komplexität ist [L]. Ich empfehle [5] Prompts in Folge."
+Optionen:
+- Passt — zeig mir Prompt 1
+- Weniger Schritte — fasse zusammen
+- Mehr Schritte — feiner aufteilen
+```

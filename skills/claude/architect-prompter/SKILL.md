@@ -15,8 +15,8 @@ description: >
 # Architect Prompter — Phase 3 & 4
 
 Führt den User von den Requirements zu einer Architektur-Entscheidung (Phase 3)
-und generiert daraus eine CLAUDE.md sowie einen strukturierten Prompt für
-Cursor AI oder Claude Code (Phase 4).
+und generiert daraus eine CLAUDE.md sowie einen strukturierten Prompt (oder
+eine Prompt-Sequenz) für Cursor AI oder Claude Code (Phase 4).
 
 **Kernprinzip:** Die Architektur bestimmt den Prompt — nicht umgekehrt.
 
@@ -24,6 +24,7 @@ Cursor AI oder Claude Code (Phase 4).
 
 - **Stack-Guide:** `references/stack-guide.md` — Tech-Stack-Empfehlungen nach Projekttyp
 - **Prompt-Schema:** `references/prompt-schema.md` — Prompt-Struktur und Beispiele
+- **Prompt-Sequenz:** `references/prompt-sequenz.md` — Komplexitäts-Gate und Sequenz-Logik
 - **CLAUDE.md Template:** `references/claude-md-template.md` — Vorlage für die Kontextdatei
 
 ## Workflow-Übersicht
@@ -31,9 +32,11 @@ Cursor AI oder Claude Code (Phase 4).
 ```
 Phase 3: Requirements → Architektur-Entscheidung (15-30 Min)
   ↓ Freigabe
-Phase 4: Architektur → CLAUDE.md + Prompt (10-20 Min)
+Komplexitäts-Gate: Architektur → S/M/L Einschätzung
+  ↓
+Phase 4: Architektur → CLAUDE.md + Prompt(s) (10-20 Min)
   ↓ Freigabe
-Output: CLAUDE.md + kopierbarer Prompt für Cursor/CC
+Output: CLAUDE.md + Einzelprompt ODER nummerierte Prompt-Sequenz
 ```
 
 **Strikte Regel:** Phase 4 erst starten wenn Architektur in Phase 3 freigegeben ist.
@@ -121,6 +124,26 @@ Optionen:
 - Datenmodell anpassen
 ```
 
+## Komplexitäts-Gate
+
+**Nach der Architektur-Freigabe und VOR Phase 4** wird die Projektkomplexität
+bewertet. Details und Scoring in `references/prompt-sequenz.md`.
+
+Kurz-Heuristik — 5 Faktoren à 0-2 Punkte:
+- Anzahl Schichten (nur Backend? + Frontend? + Auth?)
+- Anzahl Endpoints/Pages
+- Datenmodell-Komplexität (Anzahl Entitäten, Legacy-DB?)
+- Externe Integrationen
+- Deployment-Komplexität
+
+Ergebnis:
+- **S (0-3 Punkte):** Einzelprompt
+- **M (4-6 Punkte):** 2-3 Prompts in Sequenz
+- **L (7+ Punkte):** 4-6 Prompts in Sequenz
+
+Dem User die Einschätzung mitteilen und bestätigen lassen.
+Referenz `projekttypen/` für projekttyp-spezifische Sequenz-Vorlagen.
+
 ## Phase 4: Prompt Engineering
 
 ### Schritt 1: CLAUDE.md generieren
@@ -150,21 +173,30 @@ Diese ist kürzer als die CLAUDE.md und fokussiert auf:
 - Verbotene Patterns
 - Bevorzugte Libraries
 
-### Schritt 3: Initialen Prompt generieren
+### Schritt 3: Prompt(s) generieren
 
-Einen strukturierten Prompt für die erste Umsetzung in Cursor/CC erstellen.
+**Bei Grösse S:** Einen einzelnen Prompt generieren.
 Schema aus `references/prompt-schema.md` verwenden.
 
-Der Prompt muss:
-- Die CLAUDE.md im PREPARATION-Block referenzieren
-- Den Aufgabentyp korrekt klassifizieren (new-project, feature, etc.)
-- Spezifisch und abgegrenzt sein
-- Relevante Skills referenzieren
+**Bei Grösse M oder L:** Eine nummerierte Prompt-Sequenz generieren.
+Logik und Vorlagen aus `references/prompt-sequenz.md` verwenden.
+Projekttyp-spezifische Reihenfolge aus `projekttypen/` berücksichtigen.
 
-Prompt als kopierbarer Code-Block präsentieren.
+Für die Sequenz:
+1. Übersicht aller Schritte mit Titel und Prüfpunkt präsentieren
+2. Nur den ersten Prompt als kopierbaren Block liefern
+3. Nachfolgende Prompts erst auf Anfrage generieren (damit Kontext aktuell bleibt)
+
+Jeder Prompt muss:
+- Die CLAUDE.md im PREPARATION-Block referenzieren
+- Den Aufgabentyp korrekt klassifizieren
+- Spezifisch und abgegrenzt sein
+- Einen CHECKPOINT-Abschnitt mit konkreten Tests enthalten
+- Ab Prompt 2: Kontext-Brücke mit Beschreibung was bereits existiert
 
 ### Schritt 4: Freigabe
 
+**Bei Einzelprompt:**
 Via `ask_user_input`:
 ```
 Frage: "CLAUDE.md und Prompt bereit — wie weiter?"
@@ -173,6 +205,17 @@ Optionen:
 - CLAUDE.md anpassen
 - Prompt anpassen
 - Beides anpassen
+```
+
+**Bei Prompt-Sequenz:**
+Via `ask_user_input`:
+```
+Frage: "CLAUDE.md und Prompt-Sequenz ([N] Schritte) bereit."
+Optionen:
+- Passt — zeig mir Prompt 1
+- Weniger Schritte — fasse zusammen
+- Mehr Schritte — feiner aufteilen
+- CLAUDE.md anpassen
 ```
 
 ## Aufgabentyp-Erkennung
@@ -187,8 +230,9 @@ Nicht jede Anfrage ist ein neues Projekt. Der Skill erkennt den Aufgabentyp:
 | `refactor` | Aufräumen, Optimieren | Ziel-Zustand, keine Verhaltensänderung |
 | `review` | Prüfen, Analysieren | Prüf-Kriterien, Output-Format |
 
-Bei `feature`, `bugfix`, `refactor`, `review`: Phase 3 überspringen (Stack steht)
-und direkt einen passenden Prompt generieren.
+Bei `feature`, `bugfix`, `refactor`, `review`: Phase 3 und Komplexitäts-Gate
+überspringen (Stack steht) und direkt einen passenden Prompt generieren.
+Das Komplexitäts-Gate gilt nur für `new-project`.
 
 ## Sprache der Outputs
 
@@ -203,3 +247,5 @@ und direkt einen passenden Prompt generieren.
 - Trade-offs ehrlich benennen — nicht alles schönreden
 - CLAUDE.md und Prompt als fertige Dateien liefern, nicht als "Entwurf"
 - Wenn der User seinen Stack schon kennt: nicht diskutieren, direkt übernehmen
+- Komplexitäts-Einschätzung transparent machen — der User soll verstehen warum
+  eine Sequenz empfohlen wird
