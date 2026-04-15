@@ -1,185 +1,139 @@
 # Review-Kategorien
 
-Bausteine für projektspezifische Review-Prompts. Nicht alle Kategorien sind
-für jedes Projekt relevant — der Skill wählt basierend auf dem Tech-Stack
-und der CLAUDE.md die passenden aus.
+Detaillierte Checklisten pro Kategorie. Nicht jede Frage ist für jedes Projekt
+relevant — Common Sense walten lassen.
 
-## Pflicht-Kategorien (immer prüfen)
+## 1. Code-Qualität
 
-### CLAUDE.md Compliance
+- [ ] Keine auskommentierten Code-Blöcke (Zombie Code)
+- [ ] Keine TODO/FIXME ohne Issue-Referenz
+- [ ] Keine offensichtliche Duplikation (DRY-Verletzungen)
+- [ ] Naming konsistent und sprechend (keine `data2`, `tmp`, `foo`)
+- [ ] Funktionen tun eine Sache (keine 200-Zeilen-Monster)
+- [ ] Dateien haben klare Verantwortung (kein "utils.ts mit 50 Funktionen")
+- [ ] Keine "magic numbers" — Konstanten benannt
+- [ ] Konsistente Formatierung (Prettier/Black/etc. eingehalten)
 
-Der wichtigste Check: Hält der Code die eigenen Regeln ein?
+## 2. Konventionen
 
-```
-### CLAUDE.md Compliance
-- Does the code follow all rules listed in the Rules section?
-- Are naming conventions consistent (snake_case, PascalCase, etc.)?
-- Are type hints present on all function signatures?
-- Is the import order correct (stdlib → third-party → local)?
-- Are comments technical and concise (WHAT, not WHY)?
-- Are forbidden patterns avoided (as listed in Rules)?
-```
+- [ ] CLAUDE.md Rules eingehalten (Do/Do NOT)
+- [ ] Code-Standards aus dem Framework eingehalten (Naming, Imports, Comments)
+- [ ] Ordnerstruktur entspricht der Vorgabe
+- [ ] Sprache der Kommentare konsistent (nicht Mix aus DE/EN)
+- [ ] Imports sortiert (extern → intern → relativ)
+- [ ] Bei mehreren Sprachen im Projekt: konsistente Stile pro Sprache
 
-Die konkreten Prüfpunkte werden aus den Rules der Projekt-CLAUDE.md extrahiert.
-Jede "Do NOT" Regel wird zu einem Prüfpunkt.
+## 3. Funktionalität
 
-### Error Handling
+- [ ] Alle MVP-Features aus Phase 2 implementiert
+- [ ] Happy Path funktioniert (manuell durchgespielt)
+- [ ] Edge Cases bedacht:
+  - Leere Inputs
+  - Sehr grosse Inputs
+  - Sonderzeichen / Unicode / Emojis
+  - Negative Zahlen / Null-Werte
+  - Concurrent Requests (bei APIs)
+  - Race Conditions
+- [ ] Fehlerfälle haben sinnvolle Reaktion (nicht crashen)
 
-```
-### Error Handling
-- Are all external calls wrapped in try/except with specific exceptions?
-- Is the logging module used (not print())?
-- Are user-facing error messages helpful and non-technical?
-- What happens when the main dependency is unavailable?
-  (DB offline, API unreachable, file missing)
-- Are there bare except: clauses? (should be specific exceptions)
-- Can the app crash from unhandled exceptions in normal usage?
-```
+## 4. Error Handling
 
-### Code-Qualität
+- [ ] Try/catch an API-Grenzen vorhanden
+- [ ] Errors werden geloggt (nicht still verschluckt)
+- [ ] User bekommt sinnvolle Fehlermeldungen (nicht "Error 500")
+- [ ] Keine `catch (e) {}` ohne Behandlung
+- [ ] Async/Promise Errors werden gefangen
+- [ ] Error-Typen unterschieden (Validation vs. Server vs. NotFound)
+- [ ] Konsistentes Error-Response-Format (z.B. `{ error: string, code: number }`)
 
-```
-### Code Quality
-- Dead code: unused imports, commented-out blocks, unreachable code?
-- Duplication: same logic in multiple places?
-- Naming consistency: same concept, same name across all files?
-- Are dataclasses/models used consistently, or are raw dicts mixed in?
-- Are magic numbers/strings extracted to constants?
-- Is the separation of concerns clean (UI vs. logic vs. data access)?
-```
+## 5. Security
 
-## Stack-spezifische Kategorien
+- [ ] Keine hardcodierten Secrets im Code
+- [ ] `.env` in `.gitignore`
+- [ ] User Input wird validiert (Zod, Pydantic, etc.)
+- [ ] SQL Queries via Prepared Statements / ORM (kein String-Concat)
+- [ ] Auth-Endpoints haben Rate Limiting (wenn relevant)
+- [ ] Passwörter werden gehasht (bcrypt/argon2), nie plain
+- [ ] Sensitive Daten nicht in Responses (z.B. `password_hash`)
+- [ ] CORS sinnvoll konfiguriert
+- [ ] Keine offenen Debug-Endpoints in Production
+- [ ] User können nur eigene Daten zugreifen (Authorization-Check pro Query)
 
-### SQL / Datenbank
+## 6. Performance
 
-Relevant wenn: pyodbc, SQLAlchemy, Prisma, oder direkte SQL-Queries im Stack.
+- [ ] Keine N+1 Queries (DB-Calls in Loops)
+- [ ] Indices auf häufig gefilterten Spalten
+- [ ] Pagination bei List-Endpoints
+- [ ] Kein synchrones I/O wo async möglich
+- [ ] Keine unnötigen Re-Renders (React) / Watcher (Vue)
+- [ ] Bilder in sinnvoller Grösse (nicht 10 MB Original-PNGs)
+- [ ] Bei Frontend: Bundle-Grösse im Blick (keine 5 MB JS)
 
-```
-### SQL Correctness
-- All queries use parameterized placeholders (? or :name), never f-strings?
-- SQL dialect matches the database?
-  - Access: LIKE with *, TOP n, IIf(), bracket notation for special chars
-  - PostgreSQL: LIKE with %, LIMIT/OFFSET, CASE WHEN
-  - SQLite: LIKE with %, LIMIT/OFFSET
-- AutoNumber/SERIAL columns: NOT provided on INSERT?
-- Transactions: autocommit=False + explicit commit/rollback for writes?
-- Connection handling: connections closed/returned after use?
-- NULL handling: are nullable columns handled in the code?
-- What happens if a query returns no results?
-```
+## 7. Tests
 
-### Auth / Security
+- [ ] Tests vorhanden für kritische Logik
+- [ ] Happy Path getestet
+- [ ] Edge Cases getestet
+- [ ] Tests laufen grün
+- [ ] Test-Coverage angemessen (kein Dogma — kritische Pfade reichen oft)
+- [ ] Bei APIs: mindestens Integration-Tests für Auth-Flow
 
-Relevant wenn: JWT, Login, Rollen, Passwörter im Stack.
+Bei Projekten ohne Tests: Nicht zwingend als Critical melden — als Suggestion
+mit Hinweis welche Bereiche am dringendsten Tests bräuchten.
 
-```
-### Auth & Security
-- Passwords hashed with bcrypt/argon2, never stored plain text?
-- JWT tokens: reasonable expiry, refresh flow implemented?
-- Role checks: enforced on every protected endpoint/action?
-- Can a user access data belonging to another user?
-- Are secrets (JWT_SECRET, DB credentials) in environment variables, not in code?
-- CORS: properly configured for the deployment target?
-```
+## 8. Dokumentation
 
-### UI-Konsistenz
+- [ ] README.md vorhanden mit:
+  - Was das Projekt macht (1–2 Sätze)
+  - Setup-Anleitung
+  - Wie ausführen (dev + production)
+- [ ] API-Endpoints dokumentiert (bei APIs)
+- [ ] Environment Variables in `.env.example` mit Beschreibung
+- [ ] CLAUDE.md aktuell (Stack/Struktur stimmt mit Code überein)
+- [ ] Bei komplexen Funktionen: kurze Kommentare die WAS erklären
 
-Relevant wenn: Frontend (React, PySide6, etc.) im Stack.
+## 9. Deployment-Readiness
 
-```
-### UI Consistency
-- All labels, buttons, and messages in the correct language?
-- Read-only vs. write mode enforced everywhere?
-- Buttons disabled when they should be (permissions, validation state)?
-- Loading states for all async operations?
-- Error states shown to user (not just logged)?
-- Form validation: inline errors or at least on submit?
-- Layout: does it work at minimum window size?
-- Navigation: can the user always go back?
-```
+- [ ] Build läuft fehlerfrei (`npm run build` / `cargo build` / etc.)
+- [ ] Keine Console-Errors oder Warnings beim Build
+- [ ] `.env.example` vorhanden und vollständig
+- [ ] Keine echten Secrets im Repo (Git History prüfen!)
+- [ ] Production-Config getrennt von Dev-Config
+- [ ] Logging in Production sinnvoll (nicht zu viel, nicht zu wenig)
+- [ ] Health-Check-Endpoint vorhanden (bei APIs)
+- [ ] Dockerfile / Compose-File funktioniert (falls relevant)
+- [ ] Backup-Strategie definiert (bei Services mit DB)
 
-### API-Konsistenz
+## Severity-Einstufung
 
-Relevant wenn: REST/GraphQL API im Stack.
+Faustregeln zur Einstufung von Findings:
 
-```
-### API Consistency
-- All endpoints return consistent format: { data: T } or { error: string, code: string }?
-- All list endpoints support pagination?
-- HTTP status codes correct (201 for create, 404 for not found, etc.)?
-- Input validation on all endpoints (before processing)?
-- Are error responses informative but not leaking internals?
-- CORS headers set correctly?
-```
+**Critical:**
+- Sicherheitslücke (Secret im Code, fehlende Auth, SQL Injection)
+- Crash bei normalem Use Case
+- Datenverlust möglich
+- MVP-Feature funktioniert nicht
 
-### Desktop-App
+**Warning:**
+- Bug in Edge Case
+- Schlechte Performance bei realistischer Last
+- Fehlende Validation
+- Code-Qualität die Wartung erschwert
+- Fehlende Tests für kritische Pfade
 
-Relevant wenn: PySide6, PyQt, Electron, Tauri im Stack.
+**Suggestion:**
+- Refactoring-Möglichkeit
+- Stilfragen
+- Optionale Verbesserungen
+- Nice-to-have Features
+- Dokumentations-Lücken die nicht blockieren
 
-```
-### Desktop App Specifics
-- Does the app start without internet/network? (if applicable)
-- File paths: relative or configurable, not hardcoded?
-- Config file: read from correct location (next to exe, not cwd)?
-- Window management: minimum size set, resize behavior correct?
-- Does the app handle the main dependency being unavailable gracefully?
-  (e.g., database file locked, network drive disconnected)
-- System resources: does the app clean up connections on close?
-- Portable: no registry entries, no AppData writes (if portable deployment)?
-```
+## Faustregeln zur Anzahl Findings
 
-### Docker / Homelab
+Nicht jede Datei muss ein Finding produzieren. Anhaltspunkte:
 
-Relevant wenn: Docker Compose, Self-Hosted im Stack.
+- **Kleines Projekt** (< 1000 LOC): 0–3 Critical, 0–5 Warnings, 0–10 Suggestions
+- **Mittleres Projekt** (1000–10’000 LOC): 0–5 Critical, 3–10 Warnings, 5–20 Suggestions
+- **Grosses Projekt** (> 10’000 LOC): Sample-basiert reviewen, klar markieren was nicht reviewt wurde
 
-```
-### Docker & Deployment
-- Dockerfile: multi-stage build, minimal final image?
-- docker-compose.yml: follows project conventions?
-- Volumes: data persisted correctly, not lost on container restart?
-- Environment variables: all documented, sensible defaults?
-- Health check: endpoint or script defined?
-- Reverse proxy: configured for the deployment target?
-- Backup: data directory identified and documented?
-```
-
-## Integration zwischen Schichten
-
-Immer prüfen wenn das Projekt mehrere Schichten hat:
-
-```
-### Cross-Layer Integration
-- Do imports between modules resolve correctly?
-- Is there a service layer between UI and data access?
-  Or do views/routes call the database directly?
-- Are caches implemented where specified (e.g., manufacturer list)?
-- Is state preserved correctly across navigation (e.g., search results
-  after viewing detail)?
-- Are all files created by Prompt 1 still used by Prompt 2/3 code?
-  (no orphaned modules from earlier prompts)
-```
-
-## Output-Format
-
-Der Review-Prompt fordert immer dieses Ausgabeformat:
-
-```
-## OUTPUT FORMAT
-
-1. **Summary** — Overall assessment in 3-5 sentences.
-   Is this ready for its intended audience?
-
-2. **Critical issues** — Must fix before giving this to users.
-   Bugs, crashes, data corruption risks, security holes.
-
-3. **Warnings** — Should fix soon.
-   Missing error handling, edge cases, UX problems.
-
-4. **Style issues** — Convention violations, naming inconsistencies,
-   dead code. Not blocking but should be cleaned up.
-
-5. **Top 5 action items** — Ordered by impact.
-   Each with: file path, function/line, what to change, why.
-
-Do NOT make any code changes. Analysis only.
-```
+Wenn die Liste länger wird: priorisieren statt verwässern.

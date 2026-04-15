@@ -1,204 +1,201 @@
 ---
 name: build-reviewer
 description: >
-  Strukturierter Code-Review, Testing und Deployment-Readiness fuer Phase 6 des
-  VibeCoding Frameworks. Verwende diesen Skill IMMER wenn (1) der User seinen Code
-  reviewen lassen moechte, (2) ein Projekt auf Production-Readiness geprueft werden
-  soll, (3) eine Testing-Checkliste gebraucht wird, (4) Begriffe wie "Review",
-  "Code-Review", "Testing", "Checkliste", "ist der Code bereit", "Quality Check",
-  "Phase 6", "production-ready", "ausliefern", "deployen" vorkommen, (5) der
-  vibecoding-lifecycle Skill Phase 6 an diesen Skill delegiert, (6) der User fragt
-  "was muss ich noch pruefen" oder "ist das fertig". Auch bei kurzen Anfragen wie
-  "review mein Projekt" oder "erstell mir eine Checkliste" diesen Skill verwenden.
+  Strukturiertes Code-Review, Test-Empfehlungen und Deployment-Readiness-Check
+  (Phase 6 des VibeCoding Frameworks). Verwende diesen Skill IMMER wenn (1) der
+  User eine Implementierung pruefen oder reviewen lassen moechte, (2) ein Projekt
+  vor dem Deployment steht, (3) Begriffe wie "Code-Review", "Review", "pruefe
+  meinen Code", "ist das produktionsreif", "kann ich das deployen",
+  "Code-Qualitaet", "Edge Cases", "Security-Check" vorkommen, (4) der
+  vibecoding-lifecycle Skill Phase 6 an diesen Skill delegiert, (5) der User nach
+  einem Cursor- oder Claude-Code-Build wissen will ob der Code gut ist. Auch bei
+  kurzen Anfragen wie "schau mal drueber" oder "passt das so?" auf Code diesen
+  Skill verwenden.
 ---
 
 # Build Reviewer — Phase 6
 
-Generiert projektspezifische Review-Prompts und Testing-Checklisten basierend auf
-der CLAUDE.md des Projekts. Führt den User durch den Review-Prozess bis zur
-Auslieferung.
+Strukturiertes Review von implementiertem Code. Prüft Qualität, Funktionalität,
+Security und Deployment-Readiness. Liefert einen klaren Report mit priorisierten
+Action Items.
 
-**Kernprinzip:** Der Review prüft den Code gegen die eigenen Regeln — die CLAUDE.md
-ist der Massstab, nicht ein abstrakter Standard.
+**Kernprinzip:** Lieber wenige fundierte Findings als eine endlose Liste. Der
+User soll nach dem Review wissen WAS er als nächstes tun muss.
 
 ## Referenz-Dateien
 
-- **Review-Kategorien:** `references/review-kategorien.md` — Prüfbereiche und typische Findings
-- **Testing-Templates:** `references/testing-templates.md` — Checklisten-Vorlagen nach Projekttyp
+- **Kategorien:** `references/review-kategorien.md` — Detaillierte Checklisten pro Kategorie
+- **Report-Format:** `references/report-template.md` — Vorlage für den Output
 
-## Wann wird dieser Skill aufgerufen?
-
-### Szenario A: Projekt ist fertig implementiert
-Der User hat alle Prompts durch, der Code läuft.
-→ Review-Prompt + Testing-Checkliste generieren.
-
-### Szenario B: Zwischenreview
-Der User ist mitten in der Implementierung und will den bisherigen Stand prüfen.
-→ Fokussierten Review-Prompt generieren (nur für den fertigen Teil).
-
-### Szenario C: Nur Testing-Checkliste
-Der User braucht nur eine Checkliste, kein Code-Review.
-→ Checkliste basierend auf MVP-Scope generieren.
-
-## Workflow
-
-### Schritt 1: Projektkontext erfassen
-
-Der Skill braucht die CLAUDE.md des Projekts. Drei Möglichkeiten:
-
-1. **Im Konversationskontext:** Der User hat die CLAUDE.md in einem vorherigen
-   Message geteilt oder sie ist als Datei angehängt.
-2. **GitHub:** Wenn das Projekt-Repo bekannt ist, via GitHub MCP laden.
-3. **Nachfragen:** Via `ask_user_input` den User bitten sie zu teilen.
+## Workflow-Übersicht
 
 ```
-Frage: "Ich brauche die CLAUDE.md deines Projekts für den Review."
-Optionen:
-- Ist als Datei angehängt
-- Liegt im GitHub Repo [User gibt Repo an]
-- Ich füge sie gleich ein
+1. Kontext laden       → CLAUDE.md, Repo-Struktur, Requirements
+2. Scope klären        → Was soll reviewt werden?
+3. Review-Tiefe wählen → Quick / Standard / Deep
+4. Review durchführen  → Systematisch nach Kategorien
+5. Report ausgeben     → Strukturiertes Markdown
+6. Action Items        → Optional als Issues / Notion-Tasks
 ```
 
-### Schritt 2: Review-Modus bestimmen
+## Tool-Hinweis: Interaktive Fragen
 
-Via `ask_user_input`:
+Dieser Skill stellt mehrfach Auswahlfragen an den User. Je nach Interface:
+
+- **Mit `ask_user_input` Widget** (z.B. Claude Chat): Tool nutzen.
+- **Ohne Widget** (z.B. Claude Code im Terminal): Frage als normalen Text mit
+  nummerierten Optionen stellen, auf Antwort warten bevor weiter.
+
+Beispiel ohne Widget:
 
 ```
-Frage: "Was brauchst du?"
-Optionen:
-- Vollständiger Review + Testing-Checkliste
-- Nur Code-Review-Prompt (für Claude Code)
-- Nur Testing-Checkliste
-- Deployment-Readiness-Check
+Welche Review-Tiefe?
+1. Quick    — Critical Issues only (5–10 Min)
+2. Standard — Alle Kategorien, wichtige Findings (15–30 Min)
+3. Deep     — Vollständig mit Verbesserungsvorschlägen (30–60 Min)
+
+[1/2/3]
 ```
 
-### Schritt 3: Review-Prompt generieren
+## Schritt 1: Kontext laden
 
-Ein projektspezifischer Prompt für Claude Code, der:
-- Die CLAUDE.md als Referenz nutzt
-- Alle Rules aus der CLAUDE.md als Prüfkriterien verwendet
-- Stack-spezifische Checks enthält (z.B. SQL-Injection bei pyodbc, XSS bei React)
-- Den Code NICHT verändert, nur analysiert
+Bevor irgendwas reviewt wird, den Projektkontext verstehen:
 
-Der Review-Prompt wird aus den Bausteinen in `references/review-kategorien.md`
-zusammengesetzt. Nicht alle Kategorien sind für jedes Projekt relevant —
-nur die passenden auswählen.
+1. **CLAUDE.md lesen** — Falls vorhanden im Projekt-Root
+2. **Repo-Struktur erfassen** — Welche Sprachen, welches Framework, welche Ordner
+3. **Requirements** — Falls verlinkt oder im README, MVP-Scope verstehen
 
-**Pflicht-Kategorien (immer prüfen):**
-- CLAUDE.md Compliance — hält der Code die eigenen Regeln ein?
-- Error Handling — sind alle Fehlerfälle abgedeckt?
-- Code-Qualität — Dead Code, Duplikate, Naming
+Wenn keine CLAUDE.md vorhanden ist:
+- Nicht abbrechen — auf Basis des Codes selbst reviewen
+- Im Report explizit darauf hinweisen ("Kein CLAUDE.md gefunden — Konventionen
+  wurden aus dem Code abgeleitet")
 
-**Stack-spezifische Kategorien:**
-- SQL/DB — wenn Datenbank im Stack (Injection, Transaktionen, Dialekt)
-- Auth/Security — wenn Auth im Stack (Token-Handling, Passwörter, Rollen)
-- UI-Konsistenz — wenn Frontend im Stack (Labels, Modi, Responsiveness)
-- API-Konsistenz — wenn REST-API im Stack (Error-Format, Pagination, Status-Codes)
+## Schritt 2: Scope klären
 
-**Format des Review-Prompts:**
+Frage an den User:
+
+```
+Was soll reviewt werden?
+- Komplettes Projekt
+- Einzelnes Feature / Modul
+- Pull Request / Diff
+- Spezifische Datei(en)
+```
+
+Bei Diff/PR: Auch den umliegenden Kontext laden, nicht nur die geänderten
+Zeilen — sonst fehlen wichtige Bezüge.
+
+## Schritt 3: Review-Tiefe wählen
+
+Frage an den User:
+
+```
+Review-Tiefe?
+- Quick (5–10 Min)    — Nur Critical Issues: Crashes, Security, MVP-Bruch
+- Standard (15–30 Min) — Alle Kategorien, wichtige Findings
+- Deep (30–60 Min)     — Alle Kategorien, alle Findings, Verbesserungsvorschläge
+```
+
+Tiefen-Empfehlung je nach Anlass:
+- Vor Deployment → Standard oder Deep
+- Mid-Development Sanity Check → Quick
+- "Lass uns mal aufräumen" → Deep
+
+## Schritt 4: Review durchführen
+
+Systematisch alle Kategorien aus `references/review-kategorien.md` durchgehen.
+Pro Finding notieren:
+
+- **Severity:** `critical` / `warning` / `suggestion`
+- **Location:** Datei + Zeile (z.B. `src/routes/auth.ts:42`)
+- **Description:** Was ist das Problem
+- **Suggested Fix:** Konkreter Lösungsvorschlag
+
+Bei **Quick-Modus**: Nur `critical` notieren.
+Bei **Standard**: `critical` + `warning`.
+Bei **Deep**: Alle drei Severities.
+
+**Kategorien-Übersicht:**
+- Code-Qualität (Duplikation, Naming, Dead Code, Komplexität)
+- Konventionen (CLAUDE.md / Code-Standards eingehalten?)
+- Funktionalität (MVP-Scope erfüllt, Edge Cases)
+- Error Handling
+- Security (Input Validation, Secrets, Auth)
+- Performance (N+1 Queries, Pagination, etc.)
+- Tests (Vorhanden? Decken kritische Pfade ab?)
+- Dokumentation (README, API Docs, Env Vars)
+- Deployment-Readiness (Build, .env.example, Secrets nicht im Repo)
+
+Details und Checklisten pro Kategorie: siehe Referenz-Datei.
+
+## Schritt 5: Report ausgeben
+
+Format aus `references/report-template.md` verwenden. Kurzform:
+
 ```markdown
-# Phase 6: Code Review — [Projektname]
+# Code Review: [Projektname]
 
-## PREPARATION
-Read `CLAUDE.md` for project context, conventions, and rules.
-Then read all files in `src/` recursively.
+**Datum:** YYYY-MM-DD
+**Scope:** [...]
+**Modus:** Quick / Standard / Deep
 
-## TASK
-Perform a comprehensive code review...
+## Zusammenfassung
+[3–5 Sätze Gesamteinschätzung]
+**Production-Ready:** Ja / Nein / Mit Einschränkungen
 
-### Evaluate
-1. **CLAUDE.md Compliance** — [projektspezifische Prüfpunkte]
-2. **Error Handling** — [projektspezifische Prüfpunkte]
-3. [Weitere relevante Kategorien]
+## Critical Issues (Must Fix)
+[Findings mit Severity = critical]
 
-## OUTPUT FORMAT
-1. **Summary** — 3-5 Sätze Gesamtbewertung
-2. **Critical issues** — Muss vor Auslieferung gefixt werden
-3. **Warnings** — Sollte bald gefixt werden
-4. **Style issues** — Konventionsverletzungen
-5. **Top 5 Action Items** — Geordnet nach Impact
+## Warnings (Should Fix)
+[Findings mit Severity = warning]
 
-Do NOT make any code changes. Analysis only.
+## Suggestions (Nice to Have)
+[Findings mit Severity = suggestion — nur in Standard/Deep]
+
+## Top 5 Action Items
+[Priorisierte Liste der nächsten Schritte]
 ```
 
-Den Prompt als herunterladbare Datei erstellen.
+Report entweder als Datei im Projekt ablegen unter
+`docs/reviews/YYYY-MM-DD-review.md` oder dem User direkt im Chat ausgeben —
+je nach Kontext und Präferenz.
 
-### Schritt 4: Testing-Checkliste generieren
+## Schritt 6: Action Items (optional)
 
-Eine projektspezifische Checkliste basierend auf:
-- MVP-Scope aus der CLAUDE.md (jedes Feature = Testgruppe)
-- Projekttyp-spezifische Tests aus `references/testing-templates.md`
-- Stack-spezifische Edge Cases
+Frage an den User:
 
-**Struktur der Checkliste:**
-```markdown
-# Testing-Checkliste — [Projektname]
-
-## 1. Startup & Grundfunktion
-- [ ] App startet ohne Fehler
-- [ ] [Projektspezifische Startbedingungen]
-
-## 2. [MVP Feature 1]
-- [ ] [Konkreter Test]
-- [ ] [Konkreter Test]
-
-## 3. [MVP Feature 2]
-...
-
-## N. Edge Cases
-- [ ] [Projektspezifische Edge Cases]
-
-## N+1. Build & Distribution
-- [ ] [Deployment-spezifische Tests]
+```
+Action Items übernehmen?
+- Als GitHub Issues anlegen (mit Labels nach Severity)
+- Als Notion Tasks anlegen (wenn notion-life-os Skill verfügbar)
+- Nein — ich kümmere mich selbst
 ```
 
-Die Checkliste als herunterladbare Datei erstellen.
+**Bei GitHub:**
+- Title: Finding-Description (kurz)
+- Body: Location + Description + Suggested Fix
+- Labels: `critical` / `warning` / `suggestion`
 
-### Schritt 5: Auslieferung begleiten
+**Bei Notion:**
+- Tasks im Aufgaben-DB anlegen
+- Mit dem Projekt verlinken
+- Priorität nach Severity setzen
 
-Nach Review und Testing:
+## Was dieser Skill NICHT tut
 
-Via `ask_user_input`:
-```
-Frage: "Review und Testing abgeschlossen?"
-Optionen:
-- Alles grün — bereit zum Ausliefern
-- Es gibt Issues — ich brauche Fix-Prompts
-- Ich brauche Hilfe beim Deployment
-```
+- Keine automatischen Code-Änderungen — der User entscheidet was umgesetzt wird
+- Kein Refactoring durchführen — nur identifizieren
+- Keine Tests schreiben — nur fehlende Tests aufzeigen
+- Keine Deployment-Aktionen — nur Readiness prüfen
 
-**Bei Issues:** Einen fokussierten Fix-Prompt generieren basierend auf den
-Review-Findings. Gleiche Struktur wie ein Feature-Prompt aus dem
-`architect-prompter` (PREPARATION, TASK, CONSTRAINTS, CHECKPOINT).
-
-**Bei Auslieferung:** Kurze Deployment-Checkliste:
-- Git: Saubere Commits, Tag gesetzt?
-- README: Setup-Anleitung vollständig?
-- Config: .env.example / config.ini.example vorhanden?
-- Build: Artefakt erstellt und getestet?
-
-## Tool-Empfehlung
-
-| Aufgabe | Tool |
-|---|---|
-| Review-Prompt ausführen | Claude Code (im Projektordner) |
-| Testing-Checkliste abarbeiten | Manuell (App starten und durchklicken) |
-| Fix-Prompts ausführen | Cursor AI (Agent Mode) |
-| Deployment | Claude Code (Build-Script, Git-Tag) |
-
-**Wichtig:** Review-Prompt immer in einem frischen Claude Code Chat ausführen.
-Nie im selben Chat wie die Implementierung — frischer Kontext liefert
-objektivere Ergebnisse.
-
-## Sprache der Outputs
-
-- **Review-Prompt:** Englisch — wird von Claude Code gelesen
-- **Testing-Checkliste:** Deutsch — wird vom User abgearbeitet
-- **Kommunikation:** Deutsch
+Für die Umsetzung: User mit Cursor / Claude Code arbeiten lassen, ggf. mit dem
+`debug-helper` oder `architect-prompter` Skill für gezielte Prompts.
 
 ## Konversations-Stil
 
-- Direkt und effizient — der User will Ergebnisse, keine Erklärungen
-- Review-Prompt und Checkliste als fertige Dateien liefern
-- Nicht den ganzen Code selbst reviewen — den Prompt generieren der das tut
-- Bei Issues: konkrete Fix-Prompts anbieten statt vage Empfehlungen
+- Findings konkret und actionable, keine vagen "verbessere dies"
+- Bei Critical Issues klar benennen, nicht beschönigen
+- Bei Suggestions knapp halten — User soll nicht überwältigt werden
+- Report immer als ganzes Dokument, nicht häppchenweise im Chat
+- Wenn Code wirklich gut ist: das auch sagen — nicht künstlich Findings konstruieren
+- Severity ehrlich einstufen — nicht alles als "critical" markieren um wichtig zu wirken
